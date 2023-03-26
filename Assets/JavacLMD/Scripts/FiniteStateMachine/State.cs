@@ -1,185 +1,78 @@
 using System;
-using System.Collections.Generic;
-using JavacLMD.FiniteStateMachine;
+using UnityEngine;
 
-namespace JavacLMD.FSM
+namespace JavacLMD.FiniteStateMachine
 {
 
     public interface IState
     {
         object ID { get; }
-        /// <summary>
-        /// The state's parent StateMachine
-        /// </summary>
-        IStateMachine<IState> FSM { get; set; }
-  
         void EnterState();
         void ExitState();
+
         void UpdateState();
         void LateUpdateState();
         void FixedUpdateState();
+
+        internal void SetStateMachine(IStateMachine fsm);
     }
-    
-    public class State : IState
+
+    public interface IState<out TStateID> : IState
     {
-        private Action _onStateEnter;
-        private Action _onStateExit;
-        private Action _onStateUpdate;
-        private Action _onStateLateUpdate;
-        private Action _onStateFixedUpdate;
+        new TStateID ID { get; }
+    }
 
-        private List<Transition> _transitions;
-        private Dictionary<object, List<Transition>> _triggerToTransitions;
+    [Serializable]
+    public class State<TStateID> : IState<TStateID>
+    {
+
+        [SerializeField] private readonly TStateID _id;
+        private IStateMachine<TStateID, IState<TStateID>> _fsm;
+
+        public TStateID ID => _id;
+        object IState.ID => ID;
         
-        private IStateMachine<IState> _fsm;
-        private object _id;
-        public object ID
-        {
-            get => _id;
-            internal set => _id = value;
-        }
-
-        /// <summary>
-        /// State's parent FSM
-        /// </summary>
-        public IStateMachine<IState> FSM
-        {
-            get => _fsm;
-            set => _fsm = value;
-        }
-
-        public State(object id, Action onEnterLogic = null, Action onExitLogic = null, Action onUpdateLogic = null, Action onLateUpdateLogic = null,
-            Action onFixedUpdateLogic = null)
+        public State(TStateID id)
         {
             _id = id;
-            _onStateEnter = onEnterLogic;
-            _onStateExit = onExitLogic;
-            _onStateUpdate = onUpdateLogic;
-            _onStateLateUpdate = onLateUpdateLogic;
-            _onStateFixedUpdate = onFixedUpdateLogic;
         }
 
-
-        void IState.EnterState() => OnStateEnter();
-        void IState.ExitState() => OnStateExit();
-
-        void IState.UpdateState()
-        {   
-            CheckTransition();
-            OnStateUpdate();
-        } 
-        void IState.LateUpdateState() => OnStateLateUpdate();
-        void IState.FixedUpdateState() => OnStateFixedUpdate();
-
-        protected virtual void OnStateEnter()
-        {   
-            _onStateEnter?.Invoke();
-        }
-
-        protected virtual void OnStateExit()
+        public void EnterState()
         {
-            _onStateExit?.Invoke();
+            Debug.Log($"Entered State {this.GetType().Name}: {ID}");
         }
 
-        protected virtual void OnStateUpdate()
+        public void ExitState()
         {
-            _onStateUpdate?.Invoke();
-        }
-        
-        protected virtual void OnStateLateUpdate()
-        {
-            _onStateLateUpdate?.Invoke();
-        }
-        
-        protected virtual void OnStateFixedUpdate()
-        {
-            _onStateFixedUpdate?.Invoke();
+            Debug.Log($"Exited State {this.GetType().Name}: {ID}");
         }
 
-        #region Triggers
-
-        public State AddTransition(Transition transition)
+        public void UpdateState()
         {
-            _transitions = _transitions ?? new List<Transition>();
-            _transitions.Add(transition);
-            return this;
+            Debug.Log($"Update State {this.GetType().Name}: {ID}");
         }
 
-        public State AddTriggerTransition(object triggerId, Transition transition)
+        public void LateUpdateState()
         {
-            _triggerToTransitions = _triggerToTransitions ?? new Dictionary<object, List<Transition>>();
-            if (!_triggerToTransitions.TryGetValue(triggerId, out var transitions))
+            Debug.Log($"Late Update State {this.GetType().Name}: {ID}");
+        }
+
+        public void FixedUpdateState()
+        {
+            Debug.Log($"Fixed Update State {this.GetType().Name}: {ID}");
+        }
+
+        void IState.SetStateMachine(IStateMachine fsm)
+        {
+            if (fsm is IStateMachine<TStateID, IState<TStateID>> finiteStateMachine)
             {
-                transitions = new List<Transition>();
-                _triggerToTransitions.Add(triggerId, transitions);
+                _fsm = finiteStateMachine;
             }
-            _transitions.Add(transition);
-            return this;
-        }
-
-        protected virtual void CheckTransition()
-        {
-            if (ShouldTransition(_transitions, out var state))
+            else
             {
-                FSM.SwitchState(state);
-                return;
+                Debug.Log("");
             }
-        }
-
-        public virtual void TriggerTransition(object triggerId)
-        {
-            if (_triggerToTransitions.TryGetValue(triggerId, out var transitions))
-            {
-                if (ShouldTransition(transitions, out var state))
-                {
-                    FSM.SwitchState(state);
-                }
-            }
-        }
-        
-        internal static bool ShouldTransition(IList<Transition> transitions, out IState state)
-        {
-            state = null;
-            if (transitions == null || transitions.Count == 0) return false;
-
-            foreach (var t in transitions)
-            {
-                if (t.ShouldTransition())
-                {
-                    state = t.ToState;
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        #endregion
-        
-       
-        
-        
-        
-    }
-
-    public class State<TStateID> : State
-    {
-        public new TStateID ID
-        {
-            get => (TStateID) base.ID;
-            set => base.ID = value;
-        }
-
-        public State(TStateID id, 
-            Action onEnterLogic = null, 
-            Action onExitLogic = null, 
-            Action onUpdateLogic = null, 
-            Action onLateUpdateLogic = null, 
-            Action onFixedUpdateLogic = null) : base(id, onEnterLogic, onExitLogic, onUpdateLogic, onLateUpdateLogic, onFixedUpdateLogic)
-        {
-            
         }
     }
-
-
+    
 }

@@ -1,85 +1,76 @@
-using System.Collections;
+using System;
 using System.Collections.Generic;
-using UnityEngine;
 
-namespace JavacLMD.FSM
+namespace JavacLMD.FiniteStateMachine
 {
 
-    public interface IStateMachine<TState> where TState : IState
+
+    public interface IStateMachine
     {
-        TState CurrentState { get; }
-        
-        bool SwitchState(object id);
-        bool SwitchState(TState targetState);
-        
-        IStateMachine<TState> AddState(TState state);
+        IState CurrentState { get; }
+        void SwitchState(object id);
+        void AddState(IState state);
     }
     
-    public sealed class StateMachine<TState> : IStateMachine<TState> where TState : IState
+
+    public interface IStateMachine<TStateID, TState> : IStateMachine where TState : IState
     {
-        private Dictionary<object, TState> _stateDictionary;
-        protected Dictionary<object, TState> StateDictionary
-        {
-            get
-            {
-                _stateDictionary ??= new Dictionary<object, TState>();
-                return _stateDictionary;
-            }
-        }
+        new TState CurrentState { get; }
 
-        [SerializeField]
-        private TState _currentState;
-        public TState CurrentState
-        {
-            get => _currentState;
-            private set => _currentState = value;
-        }
+        void SwitchState(TStateID id);
+        void AddState(TState newState);
+    }
 
-
-        public IStateMachine<TState> AddState(TState state)
-        {
-            if (!StateDictionary.ContainsKey(state.ID))
-            {
-                state.FSM = this as IStateMachine<IState>;
-                StateDictionary.Add(state.ID, state);
-            }
-
-            return this;
-        }
-
-        public bool SwitchState(object id)
-        {
-            if (StateDictionary.TryGetValue(id, out var targetState))
-            {
-                return SwitchState(targetState);
-            }
-            return false;
-        }
-
-        public bool SwitchState(TState targetState)
-        {
-            CurrentState?.ExitState();
-            CurrentState = targetState;
-            CurrentState.EnterState();
-
-            return CurrentState.Equals(targetState);
-        }
-
-        void UpdateState()
-        {
-            CurrentState?.UpdateState();
-        }
+    [Serializable]
+    public class StateMachine<TStateID, TState> : IStateMachine<TStateID, TState> where TState : IState
+    {
+        public TState CurrentState { get; protected set; }
+        IState IStateMachine.CurrentState => CurrentState;
         
-        void LateUpdateState()
+        
+        private Dictionary<object, TState> _statesDictionary;
+
+        public void SwitchState(TStateID id)
         {
-            CurrentState?.LateUpdateState();
+            if (_statesDictionary != null && _statesDictionary.TryGetValue(id, out TState targetState))
+            {
+                CurrentState?.ExitState();
+                CurrentState = targetState;
+                CurrentState.EnterState();
+            }
         }
 
-        void FixedUpdateState()
+        public void AddState(TState state)
         {
-            CurrentState?.FixedUpdateState();
+            _statesDictionary ??= new Dictionary<object, TState>();
+            if (!_statesDictionary.ContainsKey(state.ID))
+            {
+                state.SetStateMachine(this);
+                _statesDictionary[state.ID] = state;
+            }
         }
-        
+
+        void IStateMachine.SwitchState(object id)
+        {
+            if (id is TStateID targetId)
+            {
+                SwitchState(targetId);
+            }
+        }
+        void IStateMachine.AddState(IState newState)
+        {
+            if (newState is TState newState1)
+            {
+                AddState(newState1);
+            }
+        }
         
     }
+
+    [Serializable]
+    public class StateMachine : StateMachine<object, IState>
+    {
+        
+    }
+
 }
