@@ -1,12 +1,13 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace JavacLMD.FiniteStateMachine
 {
 
-    public interface IState
+    public interface IState<TStateID>
     {
-        object ID { get; }
+        TStateID ID { get; }
         void EnterState();
         void ExitState();
 
@@ -14,12 +15,7 @@ namespace JavacLMD.FiniteStateMachine
         void LateUpdateState();
         void FixedUpdateState();
 
-        internal void SetStateMachine(IStateMachine fsm);
-    }
-
-    public interface IState<out TStateID> : IState
-    {
-        new TStateID ID { get; }
+        internal void SetStateMachine(IStateMachine<TStateID> fsm);
     }
 
     [Serializable]
@@ -27,10 +23,11 @@ namespace JavacLMD.FiniteStateMachine
     {
 
         [SerializeField] private readonly TStateID _id;
-        private IStateMachine<TStateID, IState<TStateID>> _fsm;
+
+        private IStateMachine<TStateID> _fsm;
+        private List<Transition<TStateID>> _transitions;
 
         public TStateID ID => _id;
-        object IState.ID => ID;
         
         public State(TStateID id)
         {
@@ -62,16 +59,14 @@ namespace JavacLMD.FiniteStateMachine
             Debug.Log($"Fixed Update State {this.GetType().Name}: {ID}");
         }
 
-        void IState.SetStateMachine(IStateMachine fsm)
+        internal void SetStateMachine(IStateMachine<TStateID> fsm)
         {
-            if (fsm is IStateMachine<TStateID, IState<TStateID>> finiteStateMachine)
-            {
-                _fsm = finiteStateMachine;
-            }
-            else
-            {
-                Debug.Log("");
-            }
+            ((IState<TStateID>) this).SetStateMachine(fsm);
+        }
+
+        void IState<TStateID>.SetStateMachine(IStateMachine<TStateID> fsm)
+        {
+            _fsm = fsm;
         }
     }
     
