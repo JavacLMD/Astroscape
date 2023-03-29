@@ -3,16 +3,8 @@ using UnityEngine;
 
 namespace JavacLMD.FiniteStateMachine
 {
-
-    public interface ITransition
+    public class Transition<TStateID>
     {
-        bool ShouldTransition();
-    }
-
-
-    public class Transition<TStateID> : ITransition
-    {
-
         [SerializeField] private TStateID _targetStateID;
         [SerializeField] private Func<bool> _condition;
 
@@ -29,8 +21,6 @@ namespace JavacLMD.FiniteStateMachine
         {
             return Condition == null || Condition();
         }
-
-
     }
 
 
